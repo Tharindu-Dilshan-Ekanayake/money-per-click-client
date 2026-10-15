@@ -62,7 +62,49 @@ export const assetUrls = {
   hatTexture: (id) => `${AVATAR_CDN}/textures/hats/${id}.png`,
   backMesh: (id) => `${AVATAR_CDN}/items/back/${id}.obj`,
   backTexture: (id) => `${AVATAR_CDN}/textures/back/${id}.png`,
+  itemMesh: (dir, id) => `${AVATAR_CDN}/items/${dir}/${id}.obj`,
+  itemTexture: (dir, id) => `${AVATAR_CDN}/textures/${dir}/${id}.png`,
 }
 
 /** Skin ids fall back to "0" rather than being skipped. */
 export const skinIdOrDefault = (id) => (isRealId(id) ? String(id) : DEFAULT_SKIN_ID)
+
+/**
+ * Extra cosmetic slots, copied from the SDK's own table (legion-sdk.min.js).
+ * `origin` is in model space; an item's local matrix under `bone` is
+ * restInverse(bone) * translate(origin). `inheritScale: false` items (hands,
+ * shoes) are worn as a pair: the mesh on `bone` plus a copy mirrored across x on
+ * `mirrorBone`, following position and rotation only.
+ */
+export const ACCESSORY_SLOTS = [
+  { type: 'hair', idKey: 'hairId', bone: 'Neck1', origin: [0, 5.6, 0], inheritScale: true, dir: 'hats' },
+  { type: 'mask', idKey: 'maskId', bone: 'Neck1', origin: [0, 5.6, 0], inheritScale: true, dir: 'hats' },
+  { type: 'neck', idKey: 'neckId', bone: 'Spine2', origin: [0, 4.8, 0], inheritScale: true, dir: 'neck' },
+  { type: 'chest', idKey: 'chestId', bone: 'Spine2', origin: [0, 3.6, 0], inheritScale: true, dir: 'chest' },
+  { type: 'waist', idKey: 'waistId', bone: 'Spine1', origin: [0, 2.4, 0], inheritScale: true, dir: 'waist' },
+  { type: 'hand', idKey: 'handId', bone: 'ArmL2_leaf', mirrorBone: 'ArmR2_leaf', origin: [0, 0, 0], inheritScale: false, dir: 'hand' },
+  { type: 'shoes', idKey: 'shoesId', bone: 'LegL2_leaf', mirrorBone: 'LegR2_leaf', origin: [0, 0, 0], inheritScale: false, dir: 'shoes' },
+]
+
+/** Clothing drawn into the skin texture, in the URL's segment order. */
+const CLOTHING_SEGMENTS = [
+  { idKey: 'pantsId', key: 'pn' },
+  { idKey: 'shirtId', key: 'sh' },
+  { idKey: 'faceId', key: 'fc' },
+]
+
+const API_URL = import.meta.env?.VITE_BLOXITY_API_URL || 'https://api.bloxity.io'
+
+/**
+ * Body texture with the worn face, shirt and pants already drawn on - the same
+ * URL `Legion.SDK.avatar.getSkinTextureUrl()` builds. The plain /skins/{id}.png
+ * has no face or clothes, so never load that when something is worn.
+ */
+export function skinTextureUrl(equipped) {
+  const worn = (id) => isRealId(id) && String(id) !== '0'
+  const skin = worn(equipped?.skinId) ? String(equipped.skinId) : DEFAULT_SKIN_ID
+  const clothes = CLOTHING_SEGMENTS.filter((c) => worn(equipped?.[c.idKey]))
+  if (!clothes.length) return assetUrls.skinTexture(skin)
+  const segments = clothes.map((c) => `_${c.key}${equipped[c.idKey]}`).join('')
+  return `${API_URL}/v1/avatar/skin-texture/s${skin}${segments}.png`
+}

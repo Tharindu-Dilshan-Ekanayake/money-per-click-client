@@ -1,10 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
+
+import { input } from './core/runtime'
 
 /**
- * Keyboard state in a ref, deliberately *not* React state.
+ * Keyboard state in the shared `input` object, deliberately *not* React state.
  *
  * Movement is read every frame inside `useFrame`; routing keydown/keyup through
  * React state would re-render the whole scene 60x a second for no benefit.
+ * (No sprint key on purpose: walk speed is earned through levels and trails.)
  */
 const KEY_MAP = {
   KeyW: 'forward',
@@ -16,34 +19,29 @@ const KEY_MAP = {
   KeyD: 'right',
   ArrowRight: 'right',
   Space: 'jump',
-  ShiftLeft: 'sprint',
-  ShiftRight: 'sprint',
 }
 
 export function useKeyboard() {
-  const keys = useRef({
-    forward: false,
-    backward: false,
-    left: false,
-    right: false,
-    jump: false,
-    sprint: false,
-  })
-
   useEffect(() => {
-    const set = (code, value) => {
-      const action = KEY_MAP[code]
-      if (action) keys.current[action] = value
+    const keys = input.keys
+    const isTyping = (e) => {
+      const tag = e.target?.tagName
+      return tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable
     }
-
     const onKeyDown = (e) => {
-      if (KEY_MAP[e.code]) e.preventDefault() // stop Space scrolling the page
-      set(e.code, true)
+      if (isTyping(e)) return
+      const action = KEY_MAP[e.code]
+      if (!action) return
+      e.preventDefault() // stop Space/arrows scrolling the page
+      keys[action] = true
     }
-    const onKeyUp = (e) => set(e.code, false)
+    const onKeyUp = (e) => {
+      const action = KEY_MAP[e.code]
+      if (action) keys[action] = false
+    }
     // Alt-tabbing away mid-run otherwise leaves a key stuck down.
     const onBlur = () => {
-      for (const action of Object.keys(keys.current)) keys.current[action] = false
+      for (const action of Object.keys(keys)) keys[action] = false
     }
 
     window.addEventListener('keydown', onKeyDown)
@@ -56,7 +54,7 @@ export function useKeyboard() {
     }
   }, [])
 
-  return keys
+  return input.keys
 }
 
 export default useKeyboard
