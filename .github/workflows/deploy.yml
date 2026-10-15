@@ -1,0 +1,64 @@
+# Build the game and upload it to Boxity frontend hosting.
+#   dev branch  -> https://1-money-per-click.dev.play.bloxity.io
+#   main branch -> https://1-money-per-click.play.bloxity.io
+#
+# Needs one repository secret: LEGION_DEPLOY_TOKEN (same token as the server).
+name: Deploy frontend to Boxity
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-deploy-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  GAME_ID: 1-money-per-click
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # Production build: the game finds its backend from the page host and joins
+      # multiplayer through the Boxity matchmaker, so no server URLs are baked in.
+      - name: Build
+        env:
+          VITE_GAME_SLUG: ${{ env.GAME_ID }}
+          VITE_LEGION_GAME_ID: ${{ env.GAME_ID }}
+          VITE_BLOXITY_PORTAL_URL: https://bloxity.io
+          VITE_BLOXITY_API_URL: https://api.bloxity.io
+        run: npm run build
+
+      - name: Zip build
+        run: cd dist && zip -qr ../build.zip .
+
+      - name: Upload to Boxity hosting
+        env:
+          LEGION_DEPLOY_TOKEN: ${{ secrets.LEGION_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$LEGION_DEPLOY_TOKEN" ]; then
+            echo "::error::Add the LEGION_DEPLOY_TOKEN repository secret first."
+            exit 1
+          fi
+          if [ "$GITHUB_REF_NAME" = "main" ]; then CHANNEL=prod; else CHANNEL=dev; fi
+          curl -sS --fail-with-body -X POST \
+            "https://api.bloxity.io/v1/hosting/games/$GAME_ID/frontend?channel=$CHANNEL&version=$GITHUB_SHA" \
+            -H "Authorization: Bearer $LEGION_DEPLOY_TOKEN" \
+            -H "Content-Type: application/zip" \
+            --data-binary @build.zip

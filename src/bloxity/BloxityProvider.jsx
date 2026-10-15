@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { BloxityContext } from './BloxityContext'
 import { getSDK, safeCall, toUnsubscribe, waitForSDK } from './sdk'
-import { DEFAULT_PROPORTIONS, useBloxityStore } from './store'
+import { DEFAULT_PROPORTIONS, PORTAL_SETTING_KEYS, useBloxityStore } from './store'
 
 /**
  * `Legion.SDK.init()` must happen exactly once per page, but React 19 StrictMode
@@ -21,6 +21,16 @@ const PART_ID_KEYS = [
   'legLId',
   'legRId',
   'torsoId',
+  'hairId',
+  'maskId',
+  'neckId',
+  'chestId',
+  'waistId',
+  'handId',
+  'shoesId',
+  'faceId',
+  'pantsId',
+  'shirtId',
 ]
 
 /**
@@ -51,6 +61,9 @@ function initOnce(gameSlug, signal) {
   if (!initPromise) {
     initPromise = waitForSDK({ signal }).then((sdk) => {
       sdk.init({ gameSlug, apiUrl: API_URL, portalUrl: PORTAL_URL })
+      // Boxity draws the emote picker; it only shows it for games that register
+      // on boot (not after assets load). The game plays the clip on `play_emote`.
+      safeCall(sdk.game?.registerFeature?.bind(sdk.game), 'emotes')
       return sdk
     })
     // A failed init shouldn't poison every later attempt (e.g. HMR reload).
@@ -157,6 +170,21 @@ export function BloxityProvider({ gameSlug, children }) {
           ),
         )
 
+        // Portal-synced settings. Registering a key also shows that control in the
+        // portal menu; listeners fire now with defaults, then with real values.
+        useBloxityStore
+          .getState()
+          .setEmbedded(Boolean(safeCall(sdk.portal?.isEmbeddedInLegion?.bind(sdk.portal))))
+        for (const key of PORTAL_SETTING_KEYS) {
+          unsubscribers.push(
+            toUnsubscribe(
+              safeCall(sdk.settings?.listen?.bind(sdk.settings), key, (value) => {
+                useBloxityStore.getState().setPortalSetting(key, value)
+              }),
+            ),
+          )
+        }
+
         // Seed anything the subscriptions didn't fire synchronously.
         const s = useBloxityStore.getState()
         if (!s.guest) s.setGuest(safeCall(sdk.auth.getGuest?.bind(sdk.auth)) || null)
@@ -202,6 +230,8 @@ export function BloxityProvider({ gameSlug, children }) {
       loadingStep: (label) =>
         safeCall((sdkRef.current || getSDK())?.game?.loadingStep, label),
       loadingEnd: () => safeCall((sdkRef.current || getSDK())?.game?.loadingEnd),
+      gameplayStart: () => safeCall((sdkRef.current || getSDK())?.game?.gameplayStart),
+      gameplayEnd: () => safeCall((sdkRef.current || getSDK())?.game?.gameplayEnd),
       updateRoom: (room) => safeCall((sdkRef.current || getSDK())?.game?.updateRoom, room),
     }),
     [],
