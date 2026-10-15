@@ -3,7 +3,10 @@ import { formatMoney, formatNumber } from '../../game/core/format'
 import { maxLevel, rebirthMultiplier, stageCost, titleFor } from '../../game/core/formulas'
 import { useGame } from '../../game/core/store'
 
-/** The orange tutorial / goal bar at the top of the screen, like the reference. */
+/**
+ * The first-time guide / next goal: always a small orange pill right at the top
+ * of the screen (never a big banner), so it never covers the game.
+ */
 export function QuestBanner() {
   const done = useGame((s) => s.data.tutorial.done)
   const stepIndex = useGame((s) => s.data.tutorial.step)
@@ -45,28 +48,15 @@ export function QuestBanner() {
   }
 
   return (
-    <>
-      {/* Desktop: the big orange banner. */}
-      <div className="quest-big pointer-events-none flex flex-col items-center" style={{ transform: 'scale(var(--ui-scale))', transformOrigin: 'top center' }}>
-      <div
-        className="relative rounded-2xl border-4 border-[#1b1b2f] bg-gradient-to-b from-[#fdba3b] to-[#f59e0b] px-6 pb-2 pt-1 shadow-[0_5px_0_#1b1b2f]"
-        style={{ maxWidth: 'calc(var(--quest-w) / var(--ui-scale))' }}
-      >
-        <div className="game-font stroke-2 absolute -top-5 left-4 whitespace-nowrap text-2xl text-[#bef264]">{label}</div>
-        <div className="game-font stroke-3 mt-2 text-balance text-center text-4xl text-white">{text}</div>
-      </div>
-      {hint && (
-        <div className="game-font stroke-2 mt-2 text-balance text-center text-lg text-white/95" style={{ maxWidth: 'calc(var(--quest-w) / var(--ui-scale))' }}>
-          {hint}
-        </div>
-      )}
-      </div>
-      {/* Phones / small windows: a small pill right at the top (see index.css). */}
+    <div className="quest-row">
       <div className="quest-compact pointer-events-none">
-        <span className="quest-compact-tag game-font">{label}</span>
-        <span className="quest-compact-text game-font stroke-2">{text}</span>
+        <div className="quest-compact-row">
+          <span className="quest-compact-tag game-font">{label}</span>
+          <span className="quest-compact-text game-font stroke-2">{text}</span>
+        </div>
+        {hint && <div className="quest-compact-hint game-font stroke-1">{hint}</div>}
       </div>
-    </>
+    </div>
   )
 }
 

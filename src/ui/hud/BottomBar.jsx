@@ -92,17 +92,17 @@ export function BottomBar() {
         <ProgressBar
           value={atMax ? 1 : xp}
           max={atMax ? 1 : need}
-          className={`level-bar h-14 flex-1 ${atMax ? 'anim-pulse' : ''}`}
+          className={`level-bar flex-1 ${atMax ? 'anim-pulse' : ''}`}
           fillClass={atMax ? 'is-max' : ''}
           label={
-            <div className="level-bar-label flex w-full items-center justify-between px-5 text-4xl">
+            <div className="level-bar-label flex w-full items-center justify-between">
               <span>Level {level}</span>
               <span>{atMax ? 'MAX' : `${formatNumber(Math.floor(xp))}/${formatNumber(need)}`}</span>
             </div>
           }
         />
       </div>
-      <div className="bar-stats game-font stroke-2 mt-1.5 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-xl text-white">
+      <div className="bar-stats game-font stroke-2 mt-1.5 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-base text-white">
         <span>👟 +{formatMoney(perStep)}/step</span>
         <span className="text-[#7dd3fc]">⚡ {speed.toFixed(1)} speed</span>
       </div>
